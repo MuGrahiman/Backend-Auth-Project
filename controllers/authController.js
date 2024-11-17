@@ -1,4 +1,4 @@
-const { signupSchema, signinSchema, acceptCodeSchema } = require("../middlewares/validator"); // Import validation schema
+const { signupSchema, signinSchema, acceptCodeSchema, changePasswordSchema } = require("../middlewares/validator"); // Import validation schema
 const userModel = require("../models/userModel"); // Import User model
 const { doHash,doHashValidation } = require("../utils/hash"); // Import hashing utilities
 const jwt = require('jsonwebtoken'); // Import JWT for token generation
@@ -252,3 +252,50 @@ exports.verifyVerificationCode = async (req, res) => {
 		console.error(error);
 	}
 };
+
+// Controller to change password
+exports.changePassword = async (req, res) => {
+	const { userId, verified } = req.user; // Get user ID and verification status
+	const { oldPassword, newPassword } = req.body; // Get old and new passwords
+
+	try {
+		// Validate passwords against schema
+		const { error, value } = changePasswordSchema.validate({
+			oldPassword,
+			newPassword,
+		});
+		if (error) {
+			return res
+				.status(401)
+				.json({ success: false, message: error.details[0].message }); // Validation error
+		}
+		if (!verified) {
+			return res
+				.status(401)
+				.json({ success: false, message: 'You are not verified user!' }); // Not verified
+		}
+		const existingUser = await userModel.findOne({ _id: userId }).select(
+			'+password' // Find user with password
+		);
+		if (!existingUser) {
+			return res
+				.status(401)
+				.json({ success: false, message: 'User does not exists!' }); // User not found
+		}
+		const result = await doHashValidation(oldPassword, existingUser.password); // Validate old password
+		if (!result) {
+			return res
+				.status(401)
+				.json({ success: false, message: 'Invalid credentials!' }); // Invalid old password
+		}
+		const hashedPassword = await doHash(newPassword, 12); // Hash new password
+		existingUser.password = hashedPassword; // Update user's password
+		await existingUser.save(); // Save changes
+		return res
+			.status(200)
+			.json({ success: true, message: 'Password updated!!' }); // Success response
+	} catch (error) {
+		console.error(error); // Log error
+	}
+};
+

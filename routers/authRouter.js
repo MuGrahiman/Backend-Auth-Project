@@ -13,7 +13,6 @@ router.post("/sign-out", identifier, authController.signOut); // Handle POST req
 
 // Handle PATCH request for send-verification-code
 router.patch(
-  identifier,
   "/send-verification-code",
   identifier,
   authController.sendVerificationCode
@@ -25,5 +24,8 @@ router.patch(
   identifier,
   authController.verifyVerificationCode
 );
+
+// Handle PATCH request for change password
+router.patch("/change-password", identifier, authController.changePassword);
 
 module.exports = router; // Export the router
