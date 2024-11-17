@@ -1,6 +1,8 @@
-const { signupSchema } = require("../middlewares/validator"); // Import validation schema
+const { signupSchema, signinSchema } = require("../middlewares/validator"); // Import validation schema
 const userModel = require("../models/userModel"); // Import User model
-const { doHash } = require("../utils/hash"); // Import hashing utility
+const { doHash,doHashValidation } = require("../utils/hash"); // Import hashing utilities
+const jwt = require('jsonwebtoken'); // Import JWT for token generation
+
 
 // Signup controller
 exports.signup = async (req, res) => {
@@ -45,6 +47,68 @@ exports.signup = async (req, res) => {
 			message: 'Your account has been created successfully',
 			result,
 		});
+	} catch (error) {
+		// Log any errors that occur
+		console.error(error);
+	}
+};
+
+// Sign in controller
+exports.signIn = async (req, res) => {
+	const { email, password } = req.body; // Destructure email and password from request body
+	try {
+		// Validate input data against the signin schema
+		const { error, value } = signinSchema.validate({ email, password });
+		if (error) {
+			// If validation fails, return error response
+			return res
+				.status(401)
+				.json({ success: false, message: error.details[0].message });
+		}
+
+		// Check if the user exists and retrieve the hashed password
+		const existingUser = await userModel.findOne({ email }).select('+password');
+		if (!existingUser) {
+			// If user does not exist, return error response
+			return res
+				.status(401)
+				.json({ success: false, message: 'User does not exist!' });
+		}
+
+		// Validate the provided password against the hashed password
+		const result = await doHashValidation(password, existingUser.password);
+		if (!result) {
+			// If password validation fails, return error response
+			return res
+				.status(401)
+				.json({ success: false, message: 'Invalid credentials!' });
+		}
+
+		// Generate JWT token for the authenticated user
+		const token = jwt.sign(
+			{
+				userId: existingUser._id,
+				email: existingUser.email,
+				verified: existingUser.verified,
+			},
+			process.env.TOKEN_SECRET,
+			{
+				expiresIn: '8h', // Token expiration time
+			}
+		);
+
+		// Set the token in a cookie and return success response
+		res
+			.cookie('Authorization', 'Bearer ' + token, {
+				expires: new Date(Date.now() + 8 * 3600000), // Cookie expiration
+				httpOnly: process.env.NODE_ENV === 'production', // Secure cookie in production
+				secure: process.env.NODE_ENV === 'production', // Use secure flag in production
+			})
+			.json({
+				success: true,
+				token, // Include the token in the response
+				message: 'Logged in successfully',
+			});
 	} catch (error) {
 		// Log any errors that occur
 		console.error(error);
