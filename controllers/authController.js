@@ -2,8 +2,10 @@ const { signupSchema, signinSchema } = require("../middlewares/validator"); // I
 const userModel = require("../models/userModel"); // Import User model
 const { doHash,doHashValidation } = require("../utils/hash"); // Import hashing utilities
 const jwt = require('jsonwebtoken'); // Import JWT for token generation
+const transporter = require("../middlewares/nodeMailer");
+const { hmacProcess } = require('../utils/hmac'); // Import HMAC processing utility
 
-
+ 
 // Signup controller
 exports.signup = async (req, res) => {
 	const { email, password } = req.body; // Destructure email and password from request body
@@ -53,7 +55,7 @@ exports.signup = async (req, res) => {
 	}
 };
 
-// Sign in controller
+// Sign in controller 
 exports.signIn = async (req, res) => {
 	const { email, password } = req.body; // Destructure email and password from request body
 	try {
@@ -123,3 +125,55 @@ exports.signOut = async (req, res) => {
 		.status(200) // Set HTTP status to 200 (OK)
 		.json({ success: true, message: 'Logged out successfully' }); // Return success message in JSON format
 };
+
+
+// Send verification code controller
+exports.sendVerificationCode = async (req, res) => {
+	const { email } = req.body; // Destructure email from request body
+	try {
+		// Check if the user exists in the database
+		const existingUser = await userModel.findOne({ email });
+		if (!existingUser) {
+			// If user does not exist, return 404 error
+			return res
+				.status(404)
+				.json({ success: false, message: 'User does not exist!' });
+		}
+		if (existingUser.verified) {
+			// If user is already verified, return 400 error
+			return res
+				.status(400)
+				.json({ success: false, message: 'You are already verified!' });
+		}
+
+		// Generate a random 6-digit verification code
+		const codeValue = Math.floor(Math.random() * 1000000).toString();
+		console.log("🚀 ~ exports.sendVerificationCode= ~ codeValue:", codeValue)
+		// Send the verification code via email
+		let info = await transporter.sendMail({
+			from: process.env.NODE_CODE_SENDING_EMAIL_ADDRESS, // Sender's email address
+			to: existingUser.email, // Recipient's email address
+			subject: 'Verification Code', // Email subject
+			html: '<h1>' + codeValue + '</h1>', // Email body containing the verification code
+		});
+
+		// Check if the email was successfully sent
+		if (info.accepted[0] === existingUser.email) {
+			// Hash the verification code and save it to the user's record
+			const hashedCodeValue = hmacProcess(
+				codeValue,
+				process.env.HMAC_VERIFICATION_CODE_SECRET
+			);
+			existingUser.verificationCode = hashedCodeValue; // Store hashed code
+			existingUser.verificationCodeValidation = Date.now(); // Store timestamp for code validation
+			await existingUser.save(); // Save changes to the user record
+			return res.status(200).json({ success: true, message: 'Code sent!' }); // Return success response
+		}
+		// If email sending fails, return 400 error
+		res.status(400).json({ success: false, message: 'Code sending failed!' });
+	} catch (error) {
+		// Log any errors that occur during the process
+		console.error(error);
+	}
+};
+
