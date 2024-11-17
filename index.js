@@ -4,6 +4,8 @@ const helmet = require("helmet"); // Import Helmet for security
 const cookieParser = require("cookie-parser"); // Import cookie parser
 const mongoose = require("mongoose"); // Import Mongoose for MongoDB
 
+const authRouter = require('./routers/authRouter');//Import Auth Router
+
 const app = express(); // Create an instance of Express
 
 // Middleware setup
@@ -24,6 +26,9 @@ const MONGO_URI = `mongodb+srv://${MongoDB_USER}:${MongoDB_PASS}@${MongoDB_CLUST
 mongoose.connect(MONGO_URI)
   .then(() => console.warn('Database is connected successfully')) // Success message
   .catch(err => console.error('Database connection error:', err)); // Error handling
+
+  app.use('/auth', authRouter);// Auth endpoint
+
 
 // Root endpoint
 app.get("/", (req, res) => 
