@@ -114,3 +114,12 @@ exports.signIn = async (req, res) => {
 		console.error(error);
 	}
 };
+
+// Sign-out controller
+exports.signOut = async (req, res) => {
+	// Clear the 'Authorization' cookie and send a success response
+	res
+		.clearCookie('Authorization') // Clear the cookie to log the user out
+		.status(200) // Set HTTP status to 200 (OK)
+		.json({ success: true, message: 'Logged out successfully' }); // Return success message in JSON format
+};

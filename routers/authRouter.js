@@ -5,6 +5,7 @@ const router = express.Router(); // Create a new router instance
 
 // Define route for user signup
 router.post('/signup', authController.signup); // Handle POST request for signup
-router.post('/signin', authController.signIn); // Handle POST request for signin
+router.post('/sign-in', authController.signIn); // Handle POST request for sign-in
+router.post('/sign-out', authController.signOut); // Handle POST request for sign-out
 
 module.exports = router; // Export the router
