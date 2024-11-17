@@ -12,4 +12,10 @@ router.patch(
   "/send-verification-code",
   authController.sendVerificationCode
 );
+// Handle PATCH request for verifying-verification-code
+router.patch(
+	'/verify-verification-code',
+	authController.verifyVerificationCode
+);
+
 module.exports = router; // Export the router

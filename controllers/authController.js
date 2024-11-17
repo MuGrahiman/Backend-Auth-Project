@@ -1,4 +1,4 @@
-const { signupSchema, signinSchema } = require("../middlewares/validator"); // Import validation schema
+const { signupSchema, signinSchema, acceptCodeSchema } = require("../middlewares/validator"); // Import validation schema
 const userModel = require("../models/userModel"); // Import User model
 const { doHash,doHashValidation } = require("../utils/hash"); // Import hashing utilities
 const jwt = require('jsonwebtoken'); // Import JWT for token generation
@@ -177,3 +177,78 @@ exports.sendVerificationCode = async (req, res) => {
 	}
 };
 
+// Controller to verify the provided verification code
+exports.verifyVerificationCode = async (req, res) => {
+	const { email, providedCode } = req.body; // Destructure email and provided code from request body
+	try {
+		// Validate the provided email and code against the defined schema
+		const { error, value } = acceptCodeSchema.validate({ email, providedCode });
+		if (error) {
+			// If validation fails, return 401 with error message
+			return res
+				.status(401)
+				.json({ success: false, message: error.details[0].message });
+		}
+
+		const codeValue = providedCode.toString(); // Convert provided code to string
+		// Find the existing user with the provided email, including verification fields
+		const existingUser = await userModel.findOne({ email }).select(
+			'+verificationCode +verificationCodeValidation'
+		);
+
+		if (!existingUser) {
+			// If user does not exist, return 401 error
+			return res
+				.status(401)
+				.json({ success: false, message: 'User does not exist!' });
+		}
+		if (existingUser.verified) {
+			// If user is already verified, return 400 error
+			return res
+				.status(400)
+				.json({ success: false, message: 'You are already verified!' });
+		}
+
+		// Check if verification code or validation timestamp is missing
+		if (
+			!existingUser.verificationCode ||
+			!existingUser.verificationCodeValidation
+		) {
+			return res
+				.status(400)
+				.json({ success: false, message: 'Something is wrong with the code!' });
+		}
+
+		// Check if the verification code has expired (5 minutes)
+		if (Date.now() - existingUser.verificationCodeValidation > 5 * 60 * 1000) {
+			return res
+				.status(400)
+				.json({ success: false, message: 'Code has expired!' });
+		}
+
+		// Hash the provided code using HMAC for comparison
+		const hashedCodeValue = hmacProcess(
+			codeValue,
+			process.env.HMAC_VERIFICATION_CODE_SECRET
+		);
+
+		// Compare the hashed code with the stored verification code
+		if (hashedCodeValue === existingUser.verificationCode) {
+			// If codes match, update user status to verified and clear verification fields
+			existingUser.verified = true;
+			existingUser.verificationCode = undefined;
+			existingUser.verificationCodeValidation = undefined;
+			await existingUser.save(); // Save the updated user record
+			return res
+				.status(200)
+				.json({ success: true, message: 'Your account has been verified!' });
+		}
+		// If codes do not match, return 400 error
+		return res
+			.status(400)
+			.json({ success: false, message: 'Unexpected error occurred!' });
+	} catch (error) {
+		// Log any errors that occur during the process
+		console.error(error);
+	}
+};
