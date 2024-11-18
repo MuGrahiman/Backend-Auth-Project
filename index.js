@@ -5,12 +5,13 @@ const cookieParser = require("cookie-parser"); // Import cookie parser
 const mongoose = require("mongoose"); // Import Mongoose for MongoDB
 
 const authRouter = require('./routers/authRouter');//Import Auth Router
+const postRouter = require('./routers/postRouter');//Import Post Router
 
 const app = express(); // Create an instance of Express
 
 // Middleware setup
 app.use(cors()); // Enable CORS
-app.use(helmet()); // Secure HTTP headers
+app.use(helmet()); // Secure HTTP headers 
 app.use(cookieParser()); // Parse cookies
 app.use(express.json()); // Parse JSON bodies
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
@@ -28,6 +29,7 @@ mongoose.connect(MONGO_URI)
   .catch(err => console.error('Database connection error:', err)); // Error handling
 
   app.use('/auth', authRouter);// Auth endpoint
+  app.use('/posts', postRouter);// Post endpoint
 
 
 // Root endpoint
