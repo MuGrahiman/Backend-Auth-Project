@@ -67,3 +67,19 @@ exports.acceptFPCodeSchema = Joi.object({ // Define a Joi validation schema
 		.required() // This field is required
 		.pattern(new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).{8,}$')), // Must match regex: at least 8 chars, at least one lowercase, one uppercase, and one digit
 });
+
+// Joi schema for validating the data required to create a post
+exports.createPostSchema = Joi.object({
+	title: Joi.string() // The title must be a string
+		.min(3) // Minimum length of 3 characters
+		.max(60) // Maximum length of 60 characters
+		.required(), // Title is a required field
+
+	description: Joi.string() // The description must be a string
+		.min(3) // Minimum length of 3 characters
+		.max(600) // Maximum length of 600 characters
+		.required(), // Description is a required field
+
+	userId: Joi.string() // The userId must be a string
+		.required(), // userId is a required field
+});

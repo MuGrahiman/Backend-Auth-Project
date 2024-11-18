@@ -1,3 +1,4 @@
+const { createPostSchema } = require("../middlewares/validator");
 const postModel = require("../models/postModel"); // Import Post model
 
 // Controller to retrieve posts with pagination
@@ -55,6 +56,41 @@ exports.singlePost = async (req, res) => {
 		res
 			.status(200)
 			.json({ success: true, message: 'single post', data: existingPost });
+	} catch (error) {
+		// Log any errors that occur during the process
+		console.error(error);
+	}
+};
+
+// Controller to create a new post
+exports.createPost = async (req, res) => {
+	const { title, description } = req.body; // Destructure title and description from the request body
+	const { userId } = req.user; // Get the user ID from the authenticated user
+
+	try {
+		// Validate the input data against the defined schema
+		const { error, value } = createPostSchema.validate({
+			title,
+			description,
+			userId,
+		});
+		
+		// If validation fails, return a 401 error with the validation message
+		if (error) {
+			return res
+				.status(401)
+				.json({ success: false, message: error.details[0].message });
+		}
+
+		// Create a new post in the database with the provided data
+		const result = await postModel.create({
+			title,
+			description,
+			userId,
+		});
+		
+		// Return a success response with the created post data
+		res.status(201).json({ success: true, message: 'created', data: result });
 	} catch (error) {
 		// Log any errors that occur during the process
 		console.error(error);
