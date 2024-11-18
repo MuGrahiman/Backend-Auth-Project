@@ -31,3 +31,32 @@ exports.getPosts = async (req, res) => {
 		console.error(error);
 	}
 };
+
+// Controller to retrieve a single post by its ID
+exports.singlePost = async (req, res) => {
+	const { _id } = req.query; // Destructure the post ID from the query parameters
+
+	try {
+		// Find the post by its ID and populate the userId field with user email
+		const existingPost = await postModel.findOne({ _id }).populate({
+			path: 'userId', // Specify the field to populate
+			select: 'email', // Only select the email field from the user data
+		});
+		
+		// Check if the post exists
+		if (!existingPost) {
+			// If not found, return a 404 error with a message
+			return res
+				.status(404)
+				.json({ success: false, message: 'Post unavailable' });
+		}
+		
+		// If the post is found, return it with a success message
+		res
+			.status(200)
+			.json({ success: true, message: 'single post', data: existingPost });
+	} catch (error) {
+		// Log any errors that occur during the process
+		console.error(error);
+	}
+};
