@@ -1,4 +1,4 @@
-const { signupSchema, signinSchema, acceptCodeSchema, changePasswordSchema } = require("../middlewares/validator"); // Import validation schema
+const { signupSchema, signinSchema, acceptCodeSchema, changePasswordSchema, acceptFPCodeSchema } = require("../middlewares/validator"); // Import validation schema
 const userModel = require("../models/userModel"); // Import User model
 const { doHash,doHashValidation } = require("../utils/hash"); // Import hashing utilities
 const jwt = require('jsonwebtoken'); // Import JWT for token generation
@@ -299,3 +299,105 @@ exports.changePassword = async (req, res) => {
 	}
 };
 
+// Controller to send forgot password code
+exports.sendForgotPasswordCode = async (req, res) => {
+	const { email } = req.body; // Get email from request body
+	try {
+		const existingUser = await userModel.findOne({ email }); // Find user by email
+		if (!existingUser) {
+			return res
+				.status(404)
+				.json({ success: false, message: 'User does not exists!' }); // User not found
+		}
+
+		const codeValue = Math.floor(Math.random() * 1000000).toString(); // Generate random code
+		console.log("🚀 ~ exports.sendForgotPasswordCode= ~ codeValue:", codeValue)
+		let info = await transporter.sendMail({ // Send email with code
+			from: process.env.NODE_CODE_SENDING_EMAIL_ADDRESS,
+			to: existingUser.email,
+			subject: 'Forgot password code',
+			html: '<h1>' + codeValue + '</h1>',
+		});
+
+		if (info.accepted[0] === existingUser.email) { // Check if email was successfully sent
+			const hashedCodeValue = hmacProcess( // Hash the code for verification
+				codeValue,
+				process.env.HMAC_VERIFICATION_CODE_SECRET
+			);
+			existingUser.forgotPasswordCode = hashedCodeValue; // Store hashed code
+			existingUser.forgotPasswordCodeValidation = Date.now(); // Set code validation timestamp
+			await existingUser.save(); // Save changes to user
+			return res.status(200).json({ success: true, message: 'Code sent!' }); // Success response
+		}
+		res.status(400).json({ success: false, message: 'Code sent failed!' }); // Failure response
+	} catch (error) {
+		console.error(error); // Log error
+	}
+};
+
+// Controller to verify forgot password code
+exports.verifyForgotPasswordCode = async (req, res) => {
+	const { email, providedCode, newPassword } = req.body; // Extract email, code, and new password from request
+	try {
+		const { error, value } = acceptFPCodeSchema.validate({ // Validate input against schema
+			email,
+			providedCode,
+			newPassword,
+		});
+		if (error) {
+			return res
+				.status(401)
+				.json({ success: false, message: error.details[0].message }); // Validation error
+		}
+
+		const codeValue = providedCode.toString(); // Convert provided code to string
+		const existingUser = await userModel.findOne({ email }).select( // Find user and select relevant fields
+			'+forgotPasswordCode +forgotPasswordCodeValidation'
+		);
+
+		if (!existingUser) {
+			return res
+				.status(401)
+				.json({ success: false, message: 'User does not exists!' }); // User not found
+		}
+
+		if ( // Validate existence of the code and timestamp
+			!existingUser.forgotPasswordCode ||
+			!existingUser.forgotPasswordCodeValidation
+		) {
+			return res
+				.status(400)
+				.json({ success: false, message: 'something is wrong with the code!' }); // Code or validation time missing
+		}
+
+		if ( // Check if the code has expired (5 minutes)
+			Date.now() - existingUser.forgotPasswordCodeValidation >
+			5 * 60 * 1000
+		) {
+			return res
+				.status(400)
+				.json({ success: false, message: 'code has been expired!' }); // Code expired
+		}
+
+		const hashedCodeValue = hmacProcess( // Hash the provided code for verification
+			codeValue,
+			process.env.HMAC_VERIFICATION_CODE_SECRET
+		);
+
+		if (hashedCodeValue === existingUser.forgotPasswordCode) { // Check if the hashed code matches
+			const hashedPassword = await doHash(newPassword, 12); // Hash the new password
+			existingUser.password = hashedPassword; // Update user's password
+			existingUser.forgotPasswordCode = undefined; // Clear forgot password code
+			existingUser.forgotPasswordCodeValidation = undefined; // Clear validation timestamp
+			await existingUser.save(); // Save user changes
+			return res
+				.status(200)
+				.json({ success: true, message: 'Password updated!!' }); // Success response
+		}
+		return res
+			.status(400)
+			.json({ success: false, message: 'unexpected occurred!!' }); // Code mismatch
+	} catch (error) {
+		console.error(error); // Log any errors
+	}
+};

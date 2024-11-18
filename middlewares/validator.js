@@ -52,3 +52,18 @@ exports.changePasswordSchema = Joi.object({
 		.required() // Make oldPassword required
 		.pattern(new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).{8,}$')), // Must match criteria: at least 8 characters, one lowercase, one uppercase, and one digit
 });
+
+// Define accept forgot password schema
+exports.acceptFPCodeSchema = Joi.object({ // Define a Joi validation schema
+	email: Joi.string() // Email field
+		.min(6) // Minimum length of 6 characters
+		.max(60) // Maximum length of 60 characters
+		.required() // This field is required
+		.email({ // Validate that the string is a valid email format
+			tlds: { allow: ['com', 'net'] }, // Only allow specific top-level domains (TLDs)
+		}),
+	providedCode: Joi.number().required(), // Provided code field must be a number and is required
+	newPassword: Joi.string() // New password field
+		.required() // This field is required
+		.pattern(new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).{8,}$')), // Must match regex: at least 8 chars, at least one lowercase, one uppercase, and one digit
+});

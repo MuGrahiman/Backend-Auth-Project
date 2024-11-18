@@ -28,4 +28,15 @@ router.patch(
 // Handle PATCH request for change password
 router.patch("/change-password", identifier, authController.changePassword);
 
+// Handle PATCH send forgot password code
+router.patch(
+	'/send-forgot-password-code',
+	authController.sendForgotPasswordCode
+);
+
+// Handle PATCH verify forgot password code
+router.patch(
+	'/verify-forgot-password-code',
+	authController.verifyForgotPasswordCode
+);
 module.exports = router; // Export the router
