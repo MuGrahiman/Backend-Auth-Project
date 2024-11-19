@@ -1,4 +1,4 @@
-const jwt = require('jsonwebtoken');
+const jwt = require('jsonwebtoken');//Import JWT
 
 // Middleware to verify JWT token
 exports.identifier = (req, res, next) => {
