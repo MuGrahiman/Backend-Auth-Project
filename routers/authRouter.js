@@ -5,7 +5,7 @@ const { identifier } = require("../middlewares/identifier");
 const router = express.Router(); // Create a new router instance
 
 // Define route for user signup
-router.post("/signup", authController.signup); // Handle POST request for signup
+router.post("/sign-up", authController.signup); // Handle POST request for signup
 
 router.post("/sign-in", authController.signIn); // Handle POST request for sign-in
 
