@@ -96,3 +96,55 @@ exports.createPost = async (req, res) => {
 		console.error(error);
 	}
 };
+
+// Controller to update an existing post
+exports.updatePost = async (req, res) => {
+	const { _id } = req.query; // Destructure the post ID from the query parameters
+	const { title, description } = req.body; // Destructure title and description from the request body
+	const { userId } = req.user; // Get the user ID from the authenticated user
+
+	try {
+		// Validate the input data against the defined schema
+		const { error, value } = createPostSchema.validate({
+			title,
+			description,
+			userId,
+		});
+		
+		// If validation fails, return a 401 error with the validation message
+		if (error) {
+			return res
+				.status(401)
+				.json({ success: false, message: error.details[0].message });
+		}
+
+		// Find the existing post by its ID
+		const existingPost = await postModel.findOne({ _id });
+		
+		// Check if the post exists
+		if (!existingPost) {
+			// If not found, return a 404 error with a message
+			return res
+				.status(404)
+				.json({ success: false, message: 'Post unavailable' });
+		}
+
+		// Check if the user is authorized to update the post
+		if (existingPost.userId.toString() !== userId) {
+			return res.status(403).json({ success: false, message: 'Unauthorized' });
+		}
+
+		// Update the post's title and description
+		existingPost.title = title;
+		existingPost.description = description;
+
+		// Save the updated post to the database
+		const result = await existingPost.save();
+		
+		// Return a success response with the updated post data
+		res.status(200).json({ success: true, message: 'Updated', data: result });
+	} catch (error) {
+		// Log any errors that occur during the process
+		console.error(error);
+	}
+};
