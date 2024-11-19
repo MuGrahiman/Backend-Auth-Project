@@ -148,3 +148,36 @@ exports.updatePost = async (req, res) => {
 		console.error(error);
 	}
 };
+
+// Controller to delete an existing post
+exports.deletePost = async (req, res) => {
+	const { _id } = req.query; // Destructure the post ID from the query parameters
+	const { userId } = req.user; // Get the user ID from the authenticated user
+
+	try {
+		// Find the existing post by its ID
+		const existingPost = await postModel.findOne({ _id });
+		
+		// Check if the post exists
+		if (!existingPost) {
+			// If not found, return a 404 error with a message
+			return res
+				.status(404)
+				.json({ success: false, message: 'Post already unavailable' });
+		}
+
+		// Check if the user is authorized to delete the post
+		if (existingPost.userId.toString() !== userId) {
+			return res.status(403).json({ success: false, message: 'Unauthorized' });
+		}
+
+		// Delete the post from the database
+		await postModel.deleteOne({ _id });
+		
+		// Return a success response indicating the post has been deleted
+		res.status(200).json({ success: true, message: 'deleted' });
+	} catch (error) {
+		// Log any errors that occur during the process
+		console.error(error);
+	}
+};
